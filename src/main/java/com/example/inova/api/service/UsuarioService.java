@@ -38,7 +38,7 @@ public class UsuarioService {
 				encontrado = usuario;
 			}
 		}
-		
+		System.out.println("retornando "+encontrado.getNome());
 		return encontrado;
 	
 	}
