@@ -57,7 +57,7 @@ public class UsuarioController {
 	@Autowired
 	private UsuarioRepository usuariorepository;
 	@Autowired
-	private UsuarioService serviceUsuario;
+	private UsuarioService usuarioservice;
 	@Autowired
 	private Util util;
 	@Autowired
@@ -65,18 +65,7 @@ public class UsuarioController {
 	@Autowired
 	private UsuarioLogadoService logadoService;
 
-
-	@GetMapping("/teste")
-	public String setCookie(HttpServletResponse response) {
-	    // create a cookie
-	    Cookie cookie = new Cookie("username", "Jovan");
-
-	    //add cookie to response
-	    response.addCookie(cookie);
-
-	    return "Username is changed!";
-	}
-	
+	//um teste para retornar todos os cookies
 	@GetMapping("/all")
 	@CrossOrigin(origins = {"http://localhost/5500", "x-requested-with", "content-type"}, originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", 
 	methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
@@ -91,60 +80,65 @@ public class UsuarioController {
 	    return "No cookies";
 	}
 
+	//faz login no sistema salvando o usuário no banco de dados
 	@PostMapping("/login")
 	@CrossOrigin(origins = {"http://localhost/5500", "x-requested-with", "content-type"}, originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", 
 	methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
 	public ResponseEntity<Usuario> login(@Valid @RequestBody Usuario usuario, HttpServletRequest request, 
 			HttpServletResponse response) {
-		
-		Usuario userLogin = serviceUsuario.loginUser(usuario.getNome(), util.MD5(usuario.getSenha()));
-		 LocalDateTime now = LocalDateTime.now();  
+		//cria um usuário para retonar na função, passando como objeto, se ele for encontrado no banco com a função loginUser
+		Usuario userLogin = usuarioservice.loginUser(usuario.getNome(), util.MD5(usuario.getSenha()));
+		//pega a data
+		LocalDateTime now = LocalDateTime.now();  
 		 
-	        System.out.println("Before Formatting: " + now);  
+		//imprime a data no console
+	    System.out.println("Before Formatting: " + now);  
+	    
+	    //formata a data e imprime
+	    DateTimeFormatter format = DateTimeFormatter.ofPattern("ddMMyyyy");  
+	    String formatDateTime = now.format(format);  
 	        
-	        DateTimeFormatter format = DateTimeFormatter.ofPattern("ddMMyyyy");  
-	        String formatDateTime = now.format(format);  
-	        
-	        System.out.println("After Formatting: " + formatDateTime); 
-	        
+	    System.out.println("After Formatting: " + formatDateTime); 
+	     
+	    //se o usuário foi encontrado, senão ele é nulo e volta uma resposta 404 não encontrado
 		if(userLogin == null) {
 			return ResponseEntity.notFound().build();
 		}else {
-			Usuario usr = serviceUsuario.loginUser(userLogin.getNome(), userLogin.getSenha());
-			HttpSession session = request.getSession();
 			
+			//Usuario usr = serviceUsuario.loginUser(userLogin.getNome(), userLogin.getSenha());
+			
+			//inicia uma sessão JSessionId
+			HttpSession session = request.getSession();
+			session.setAttribute("usuarioLogado", userLogin);
+			
+			//cria uma chave para cookie
 			String chave = formatDateTime+""+userLogin.getSenha()+"-"+userLogin.getId();
 			
+			//UsuarioLogado referente a sessão no banco de dados
 			UsuarioLogado logado = new UsuarioLogado();
 			logado.setChave(chave);
 			
-			System.out.println(usuario.getId()+" o id do ususario");
-			logado.setId_usuario(usr.getId());
+			//coloca o id do userLogin no unuário logado para referencia-lo
+			logado.setId_usuario(userLogin.getId());
 			
-			session.setAttribute("usuarioLogado", userLogin);
+			
 			
 			Enumeration<String> list =  session.getAttributeNames();
 
 			System.out.println(list.nextElement()+" next");
 			
 			
-			
+			//isloged procura na db se já consta nos registros
 			if(logadoService.isLoged(logado)==false) {
-				logadorepository.save(logado); /// ver isso aqui tambem   <<--
+				// se o usuário ainda não está na db ele salva lá
+				logadorepository.save(logado); 
 				System.out.println(chave+" logado com sucesso -- the key");
 			}else {
+				//senão só imprime no console que não precisa salvar de novo
 				System.out.println("ja consta nos registros");
 			}
 			
-			/*Cookie c = new Cookie("InovaInd", chave);
-			c.setMaxAge(60*60*24);
-			c.setPath("/");
-			c.setDomain("localhost");
-			c.setSecure(true);
-			c.setHttpOnly(true);
-			*/
-			
-			
+			//pega o header da requisição e seta o jsessionid com os atributos necessários para o navegador
 			Collection<String> headers = response.getHeaders(HttpHeaders.SET_COOKIE);
 			for (String header : headers) { // there can be multiple Set-Cookie attributes
 	            boolean firstHeader = false;
@@ -156,6 +150,7 @@ public class UsuarioController {
 				response.addHeader(HttpHeaders.SET_COOKIE, String.format("%s; %s", header, "httpOnly; Secure=True; SameSite=None"));
 			}
 			
+			//cria um cookie personalizado caso o jsessionid não funcione
 			final ResponseCookie responseCookie = ResponseCookie
 			        .from("InovaInd", chave)
 			        .secure(true)
@@ -164,25 +159,33 @@ public class UsuarioController {
 			        .maxAge(12345)
 			        .sameSite("None")
 			        .build();
+			//responde com o cookie
 			response.addHeader(HttpHeaders.SET_COOKIE, responseCookie.toString());
 			
 			System.out.println("jsessionid  --> "+session.getId());
+			
+			//se ocorreu tudo certo responde com os dados do usuário
 			return ResponseEntity.ok(userLogin);
 			
 		}
 	}
 
+	//funcao que valida a sessao
 	@RequestMapping("/index")
 	@CrossOrigin(origins = {"http://localhost/5500", "x-requested-with", "content-type"}, originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", 
 	methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
 	public ResponseEntity<Usuario> index(@Valid HttpSession session, @RequestBody UsuarioLogado chave) {
 		
-		System.out.println(chave.getChave()+ "a chave que veio do front no método de vereficação de sessão /index");
+		System.out.println(chave.getChave()+ " a chave que veio do front no método de vereficação de sessão /index");
 		
-		Usuario user;
-		System.out.println(session.getAttribute("usuarioLogado")+" vereficando se existe um jsessionid");
+		Usuario user = null;
 		
-		user = (Usuario) session.getAttribute("usuarioLogado");
+		if(session.getAttribute("usuarioLogado")!=null) {
+			
+			System.out.println(session.getAttribute("usuarioLogado")+" vereficando se existe um jsessionid");
+			
+			user = (Usuario) session.getAttribute("usuarioLogado");
+		}
 		
 		
 		if(user == null) {
@@ -203,14 +206,15 @@ public class UsuarioController {
 	@RequestMapping
 	@CrossOrigin(origins ="http://localhost/5500", originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
 	public List<Usuario> listar(HttpSession session, @RequestBody UsuarioLogado chave){
+		
 		System.out.println("usuario logado fazendo requisição na api. Usuario: "+session.getAttributeNames());
+		
 		if (session.getAttribute("usuarioLogado")!=null) {
 			System.out.println("user nao e nulo "+session.getAttribute("usuarioLogado").getClass());
-			//session.removeAttribute("usuarioLogado");
 			return usuariorepository.findAll();
 		}else {
 			if(logadoService.isLoged(chave)==false) {
-				return (List<Usuario>) ResponseEntity.notFound().build();
+				return null;
 			}else {
 				return usuariorepository.findAll();
 			}
@@ -218,12 +222,23 @@ public class UsuarioController {
 		
 	}
 	
+	
+	@GetMapping("/acesso")
+	public int tenhoAcesso(HttpSession session) {
+		System.out.println("pedindo acesso... retornando o nível de acesso");
+		Usuario user = (Usuario) session.getAttribute("usuarioLogado");
+		if(user==null) {
+			return -1;
+		}
+		return user.getNivel_acesso();
+	}
+	
 	@PostMapping("/cadastrar")
 	@ResponseStatus(HttpStatus.CREATED)
 	@CrossOrigin(origins = {"http://localhost/5500", "x-requested-with", "content-type"}, originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", 
 	methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
-	public Usuario cadastrar(@Valid @RequestBody Usuario usuario) {
-		return usuariorepository.save(usuario);
+	public Usuario cadastrar(@Valid @RequestBody Usuario usuario, HttpSession session) throws Exception {
+		return usuarioservice.salvar(usuario, session);
 	}
 	
 	@RequestMapping("/{usuarioId}")
@@ -279,7 +294,7 @@ public class UsuarioController {
 		Usuario u = new Usuario();
 		u = usuariorepository.findById(usuarioId).get();
 		
-		user = serviceUsuario.evitaCamposVazios(user, u);
+		user = usuarioservice.evitaCamposVazios(user, u);
 		
 		user.setId(usuarioId);
 		System.out.println("MD5"+user.getSenha());

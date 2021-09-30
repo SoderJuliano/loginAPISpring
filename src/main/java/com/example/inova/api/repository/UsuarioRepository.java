@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.example.inova.api.model.Usuario;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, Long>{

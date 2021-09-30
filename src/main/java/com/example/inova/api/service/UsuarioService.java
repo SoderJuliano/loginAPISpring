@@ -3,29 +3,49 @@ package com.example.inova.api.service;
 
 import java.util.List;
 
-import org.springframework.stereotype.Service;
+import javax.servlet.http.HttpSession;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.inova.api.common.Util;
 import com.example.inova.api.model.Usuario;
 import com.example.inova.api.model.UsuarioLogado;
 import com.example.inova.api.repository.UsuarioLogadoRepository;
 import com.example.inova.api.repository.UsuarioRepository;
 
+import lombok.AllArgsConstructor;
+
 @Service
+@AllArgsConstructor
 public class UsuarioService {
-
-
-	public UsuarioService(UsuarioRepository userRepository, UsuarioLogadoRepository userLogedRepository) {
-		super();
-		this.userRepository = userRepository;
-		this.userLogedRepository = userLogedRepository;
-	}
-
 
 	private UsuarioRepository userRepository;
 	private UsuarioLogadoRepository userLogedRepository;
+	@Autowired
+	private Util util;
 	
 	public UsuarioLogado checkLoginById(String chave) {
 		return userLogedRepository.findByChave(chave);
+	}
+	
+	@Transactional
+	public Usuario salvar(Usuario user, HttpSession session) throws Exception {
+		boolean nomeEmUso = userRepository.findByNome(user.getNome())
+				.stream()
+				.anyMatch(usuarioExistente -> !usuarioExistente.equals(user));
+		
+		if(nomeEmUso) {
+			throw new Exception("Já existe um cliente cadastrado com este nome");
+		}
+		 Usuario local = (Usuario) session.getAttribute("usuarioLogado");
+		if(local.getNivel_acesso()<user.getNivel_acesso()) {
+			throw new Exception("Não pode cadastrar um usuário com nível maior que o seu");
+		}
+		user.setSenha(util.MD5(user.getSenha()));
+		return userRepository.save(user);
 	}
 	
 	// esta funcao utiliza a classe repositorio para pegar o usuarios pelo nome do login
