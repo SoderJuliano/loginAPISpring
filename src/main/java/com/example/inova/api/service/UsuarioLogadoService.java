@@ -1,5 +1,6 @@
 package com.example.inova.api.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -44,5 +45,15 @@ public class UsuarioLogadoService {
 		long id = logado.getId_usuario();
 		user = usuariorepository.findById(id);
 		return user.get();
+	}
+	
+	public void removerDaSessao(UsuarioLogado ul) {
+		List<UsuarioLogado> uls = usuariologadorepository.findAll();
+		for (UsuarioLogado usuarioLogado : uls) {
+			if(usuarioLogado.getId_usuario()==ul.getId_usuario()) {
+				System.out.println("foi removida da sessao o id "+usuarioLogado.getId());
+				usuariologadorepository.deleteById(usuarioLogado.getId());
+			}
+		}
 	}
 }

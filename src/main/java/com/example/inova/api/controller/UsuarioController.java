@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.SessionAttributes;
@@ -47,7 +48,6 @@ import com.example.inova.api.common.Util;
 methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT})
 @RestController
 @RequestMapping("/usuarios")
-@SessionAttributes("sessaoid")
 @AllArgsConstructor
 public class UsuarioController {
 
@@ -80,6 +80,24 @@ public class UsuarioController {
 	    return "No cookies";
 	}
 
+	//remove a sessão no momento do logout
+	@PostMapping("/logout")
+	public void logout(HttpServletRequest request, @RequestBody UsuarioLogado logado) {
+		//poderia fazer de duas maneuiras
+		//PRIMEIRA -> atraves dos cookies usar um inovaind[0].split(-)[1] pra pegar o id do usuario e remover
+		//SEGUNDA -> esta que eu apliquei abaixo, passei o cookie pelo RequestBody como um objeto
+		Cookie[] cookies = request.getCookies();
+		String invovaind = null;
+		if(cookies!=null) {
+			invovaind = Arrays.stream(cookies)
+			.map(c -> c.getName() + "=" + c.getValue()).collect(Collectors.joining(", "));
+			System.out.println("inovaind cookie --> "+invovaind);
+		}
+		if(logado!=null) {
+			logadoService.removerDaSessao(logado);
+		}
+	}
+	
 	//faz login no sistema salvando o usuário no banco de dados
 	@PostMapping("/login")
 	@CrossOrigin(origins = {"http://localhost/5500", "x-requested-with", "content-type"}, originPatterns = "*", allowCredentials = "true", allowedHeaders = "*", 
@@ -120,13 +138,6 @@ public class UsuarioController {
 			
 			//coloca o id do userLogin no unuário logado para referencia-lo
 			logado.setId_usuario(userLogin.getId());
-			
-			
-			
-			Enumeration<String> list =  session.getAttributeNames();
-
-			System.out.println(list.nextElement()+" next");
-			
 			
 			//isloged procura na db se já consta nos registros
 			if(logadoService.isLoged(logado)==false) {

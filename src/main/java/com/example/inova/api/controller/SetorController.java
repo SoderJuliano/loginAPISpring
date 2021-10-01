@@ -14,20 +14,15 @@ import com.example.inova.api.model.Usuario;
 import com.example.inova.api.repository.SetorRepository;
 import com.example.inova.api.repository.UsuarioRepository;
 
+import lombok.AllArgsConstructor;
+
 @RestController
 @RequestMapping("/setor")
+@AllArgsConstructor
 public class SetorController {
 
 	private SetorRepository setorRepository;
 	private UsuarioRepository usuarioRepository;
-
-	
-	
-	public SetorController(SetorRepository setorRepository, UsuarioRepository usuarioRepository) {
-		super();
-		this.setorRepository = setorRepository;
-		this.usuarioRepository = usuarioRepository;
-	}
 
 	// lista os setores
 	@GetMapping
@@ -37,7 +32,6 @@ public class SetorController {
 	
 	
 	// aqui voce pode passar o id do usuario que ele busca o setor dele
-	@SuppressWarnings("deprecation")
 	@GetMapping("/usuario/{usuarioId}")
 	public ResponseEntity<Setor> buscarPorUsuario(@PathVariable Long usuarioId){
 		Optional<Usuario> u = usuarioRepository.findById(usuarioId);
